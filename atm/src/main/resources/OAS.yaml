@@ -1,0 +1,183 @@
+---
+openapi: 3.0.1
+info:
+  title: OpenAPI definition
+  version: 1.0.0-oas3
+servers:
+- url: http://localhost:8080
+  description: Generated server url
+paths:
+  /v1/reservation:
+    post:
+      tags:
+      - Bank Core Demo API
+      description: Reserve money on a Bank Account
+      operationId: reserveMoneyOnAccount
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReservationRequest'
+        required: true
+      responses:
+        "200":
+          description: Reservation created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationResponse'
+        "400":
+          description: Not enough funds
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationResponse'
+        "404":
+          description: Non existing Account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationResponse'
+  /v1/reservation/commit/{reservationId}:
+    post:
+      tags:
+      - Bank Core Demo API
+      description: Commit withdrawal
+      operationId: commitReservationOnAccount
+      parameters:
+      - name: reservationId
+        in: path
+        required: true
+        style: simple
+        explode: false
+        schema:
+          type: string
+      responses:
+        "204":
+          description: Committed
+          content:
+            application/json:
+              schema:
+                type: string
+        "404":
+          description: No such reservation
+          content:
+            application/json:
+              schema:
+                type: string
+  /v1/account/{cardNumber}:
+    get:
+      tags:
+      - Bank Core Demo API
+      description: Get Bank Account number by Credit Card number
+      operationId: getAccountNumberByCard
+      parameters:
+      - name: cardNumber
+        in: path
+        required: true
+        style: simple
+        explode: false
+        schema:
+          type: string
+      responses:
+        "200":
+          description: Existing card with Account Number assigned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CardResponse'
+        "404":
+          description: Non existing card
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CardResponse'
+  /v1/account/balance/{accountNumber}:
+    get:
+      tags:
+      - Bank Core Demo API
+      description: Get Bank Account balance
+      operationId: getAccountBalance
+      parameters:
+      - name: accountNumber
+        in: path
+        required: true
+        style: simple
+        explode: false
+        schema:
+          type: string
+      responses:
+        "200":
+          description: Existing Account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BalanceResponse'
+        "404":
+          description: Non existing Account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BalanceResponse'
+  /v1/reservation/{reservationId}:
+    delete:
+      tags:
+      - Bank Core Demo API
+      description: Cancel reservation
+      operationId: reserveMoneyOnAccount_1
+      parameters:
+      - name: reservationId
+        in: path
+        required: true
+        style: simple
+        explode: false
+        schema:
+          type: string
+      responses:
+        "204":
+          description: Removed
+          content:
+            application/json:
+              schema:
+                type: string
+        "404":
+          description: No such reservation
+          content:
+            application/json:
+              schema:
+                type: string
+components:
+  schemas:
+    ReservationRequest:
+      required:
+      - accountNumber
+      - reservedAmount
+      type: object
+      properties:
+        accountNumber:
+          type: string
+        reservedAmount:
+          type: integer
+          format: int32
+    ReservationResponse:
+      required:
+      - reservationId
+      type: object
+      properties:
+        reservationId:
+          type: string
+    CardResponse:
+      required:
+      - accountNumber
+      type: object
+      properties:
+        accountNumber:
+          type: string
+    BalanceResponse:
+      required:
+      - balance
+      type: object
+      properties:
+        balance:
+          type: integer
+          format: int32
