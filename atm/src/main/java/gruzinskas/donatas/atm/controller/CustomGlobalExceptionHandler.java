@@ -35,7 +35,7 @@ public class CustomGlobalExceptionHandler extends ResponseEntityExceptionHandler
         return new ResponseEntity<>(body, HttpStatus.BAD_REQUEST);
     }
 
-    @ExceptionHandler({EntityNotFoundException.class, InsufficientFundsException.class})
+    @ExceptionHandler({EntityNotFoundException.class, InsufficientFundsException.class, IllegalStateException.class})
     protected ResponseEntity<Object> handleCustomExceptions(RuntimeException exception, WebRequest webRequest) {
         Map<String, Object> body = new HashMap<>();
         body.put("status", HttpStatus.BAD_REQUEST.value());
