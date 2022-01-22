@@ -153,7 +153,7 @@ public class AtmServiceTest {
     }
 
     @Test
-    public void ShouldCatchUnexpectedException() {
+    public void ShouldCatchUnexpectedCashDispenserException() {
         exceptionRule.expect(IllegalStateException.class);
         exceptionRule.expectMessage("ATM has encountered difficulties");
         CardResponse cardResponse = new CardResponse();
@@ -170,6 +170,29 @@ public class AtmServiceTest {
         when(bankCoreDemoApiApi.getAccountNumberByCard(any())).thenReturn(cardResponse);
         when(bankCoreDemoApiApi.getAccountBalance(any())).thenReturn(balanceResponse);
         when(bankCoreDemoApiApi.reserveMoneyOnAccount(any())).thenReturn(reservationResponse);
+
+        atmService.getMoney(moneyRequestDTO);
+    }
+
+    @Test
+    public void ShouldCatchFailedReservationRollbackException() {
+        exceptionRule.expect(EntityNotFoundException.class);
+        exceptionRule.expectMessage("Could not roll-back, reservation not found");
+        CardResponse cardResponse = new CardResponse();
+        cardResponse.setAccountNumber("123");
+        BalanceResponse balanceResponse = new BalanceResponse();
+        balanceResponse.setBalance(1000);
+        ReservationResponse reservationResponse = new ReservationResponse();
+        reservationResponse.setReservationId("asdf");
+        MoneyRequestDTO moneyRequestDTO = new MoneyRequestDTO();
+        moneyRequestDTO.setAmount(100);
+        moneyRequestDTO.setCardNumber("123");
+
+        when(cashDispenser.issueMoney(anyInt())).thenThrow(NullPointerException.class);
+        when(bankCoreDemoApiApi.getAccountNumberByCard(any())).thenReturn(cardResponse);
+        when(bankCoreDemoApiApi.getAccountBalance(any())).thenReturn(balanceResponse);
+        when(bankCoreDemoApiApi.reserveMoneyOnAccount(any())).thenReturn(reservationResponse);
+        when(bankCoreDemoApiApi.reserveMoneyOnAccount1(any())).thenThrow(HttpClientErrorException.NotFound.class);
 
         atmService.getMoney(moneyRequestDTO);
     }
