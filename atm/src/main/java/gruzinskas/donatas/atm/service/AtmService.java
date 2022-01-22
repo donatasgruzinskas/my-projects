@@ -1,7 +1,6 @@
 package gruzinskas.donatas.atm.service;
 
 import gruzinskas.donatas.atm.bean.CashDispenser;
-import gruzinskas.donatas.atm.common.InsufficientFundsException;
 import gruzinskas.donatas.atm.model.MoneyRequestDTO;
 import io.swagger.client.api.BankCoreDemoApiApi;
 import io.swagger.client.model.BalanceResponse;
@@ -12,9 +11,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.HttpClientErrorException;
-
-import javax.persistence.EntityNotFoundException;
 
 @Component
 public class AtmService {
@@ -32,52 +28,37 @@ public class AtmService {
     }
 
     public boolean getMoney(MoneyRequestDTO moneyRequestDTO) {
-        BalanceResponse balanceResponse;
-        CardResponse cardResponse;
-        try {
-            cardResponse = bankCoreDemoApiApi.getAccountNumberByCard(moneyRequestDTO.getCardNumber());
-            balanceResponse = bankCoreDemoApiApi.getAccountBalance(cardResponse.getAccountNumber());
-        } catch (HttpClientErrorException.NotFound e) {
-            throw new EntityNotFoundException("Please enter a valid card number");
-        }
+        CardResponse cardResponse = bankCoreDemoApiApi.getAccountNumberByCard(moneyRequestDTO.getCardNumber());
+        bankCoreDemoApiApi.getAccountBalance(cardResponse.getAccountNumber());
 
         Integer amount = moneyRequestDTO.getAmount();
-        if (balanceResponse.getBalance() < amount) {
-            throw new InsufficientFundsException("Not enough funds");
-        }
+        //Overdraft?
+//        if (balanceResponse.getBalance() < amount) {
+//            throw new InsufficientFundsException("Not enough funds");
+//        }
         ReservationRequest reservationRequest = new ReservationRequest();
         reservationRequest.setAccountNumber(cardResponse.getAccountNumber());
         reservationRequest.setReservedAmount(amount);
-        ReservationResponse reservationResponse = null;
-        boolean cashDispensed = false;
 
+        boolean cashDispensed = false;
+        ReservationResponse reservationResponse = null;
         try {
             reservationResponse = bankCoreDemoApiApi.reserveMoneyOnAccount(reservationRequest);
             cashDispensed = cashDispenser.issueMoney(amount);
             if (cashDispensed) {
-                String result = bankCoreDemoApiApi.commitReservationOnAccount(reservationResponse.getReservationId());
-                logger.info(result);
+                bankCoreDemoApiApi.commitReservationOnAccount(reservationResponse.getReservationId());
                 return true;
             } else {
                 bankCoreDemoApiApi.reserveMoneyOnAccount1(reservationResponse.getReservationId());
                 return false;
             }
-        } catch (HttpClientErrorException.NotFound e) {
-            throw new EntityNotFoundException("Failed to reserve funds");
-        } catch (HttpClientErrorException.Conflict e) {
-            throw new InsufficientFundsException("Not enough funds");
         } catch (Exception e) {
-            try {
-                if (reservationResponse != null && !cashDispensed) {
-                    bankCoreDemoApiApi.reserveMoneyOnAccount1(reservationResponse.getReservationId());
-                    logger.info(reservationResponse.getReservationId() + " reverted.");
-                }
-                e.printStackTrace();
-                throw new IllegalStateException("ATM has encountered difficulties");
-            } catch (HttpClientErrorException.NotFound error) {
-                logger.error("Failed to revert reservation " + reservationResponse.getReservationId());
-                throw new EntityNotFoundException("Could not roll-back, reservation not found");
+            if (reservationResponse != null && !cashDispensed) {
+                logger.info("reverting reservation " + reservationResponse.getReservationId());
+                bankCoreDemoApiApi.reserveMoneyOnAccount1(reservationResponse.getReservationId());
+                logger.info(reservationResponse.getReservationId() + " reverted.");
             }
+            throw e;
         }
     }
 }

@@ -23,7 +23,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @RunWith(SpringJUnit4ClassRunner.class)
 public class AtmServiceTest {
@@ -47,14 +47,14 @@ public class AtmServiceTest {
     @Test
     public void ShouldPassHappyPath() {
         CardResponse cardResponse = new CardResponse();
-        cardResponse.setAccountNumber("123");
+        cardResponse.setAccountNumber("ACCOUNT_NUMBER");
         BalanceResponse balanceResponse = new BalanceResponse();
         balanceResponse.setBalance(1000);
         ReservationResponse reservationResponse = new ReservationResponse();
-        reservationResponse.setReservationId("asdf");
+        reservationResponse.setReservationId("RESERVATION_ID");
         MoneyRequestDTO moneyRequestDTO = new MoneyRequestDTO();
         moneyRequestDTO.setAmount(100);
-        moneyRequestDTO.setCardNumber("123");
+        moneyRequestDTO.setCardNumber("CARD_NUMBER");
 
         when(cashDispenser.issueMoney(anyInt())).thenReturn(true);
         when(bankCoreDemoApiApi.getAccountNumberByCard(any())).thenReturn(cardResponse);
@@ -65,37 +65,23 @@ public class AtmServiceTest {
         boolean result = atmService.getMoney(moneyRequestDTO);
 
         assertTrue(result);
-    }
-
-    @Test
-    public void ShouldFailWithLowBalance() {
-        exceptionRule.expect(InsufficientFundsException.class);
-        exceptionRule.expectMessage("Not enough funds");
-        CardResponse cardResponse = new CardResponse();
-        cardResponse.setAccountNumber("123");
-        BalanceResponse balanceResponse = new BalanceResponse();
-        balanceResponse.setBalance(1000);
-        MoneyRequestDTO moneyRequestDTO = new MoneyRequestDTO();
-        moneyRequestDTO.setAmount(10000);
-        moneyRequestDTO.setCardNumber("123");
-
-        when(bankCoreDemoApiApi.getAccountNumberByCard(any())).thenReturn(cardResponse);
-        when(bankCoreDemoApiApi.getAccountBalance(any())).thenReturn(balanceResponse);
-
-        atmService.getMoney(moneyRequestDTO);
+        verify(bankCoreDemoApiApi, times(1)).reserveMoneyOnAccount(any());
+        verify(cashDispenser, times(1)).issueMoney(anyInt());
+        verify(bankCoreDemoApiApi, times(1)).commitReservationOnAccount(any());
+        verify(bankCoreDemoApiApi, times(0)).reserveMoneyOnAccount1(any());
     }
 
     @Test
     public void ShouldFailGracefullyWithWhenFailingToIssueMoney() {
         CardResponse cardResponse = new CardResponse();
-        cardResponse.setAccountNumber("123");
+        cardResponse.setAccountNumber("ACCOUNT_NUMBER");
         BalanceResponse balanceResponse = new BalanceResponse();
         balanceResponse.setBalance(1000);
         ReservationResponse reservationResponse = new ReservationResponse();
-        reservationResponse.setReservationId("asdf");
+        reservationResponse.setReservationId("RESERVATION_ID");
         MoneyRequestDTO moneyRequestDTO = new MoneyRequestDTO();
         moneyRequestDTO.setAmount(100);
-        moneyRequestDTO.setCardNumber("123");
+        moneyRequestDTO.setCardNumber("CARD_NUMBER");
 
         when(cashDispenser.issueMoney(anyInt())).thenReturn(false);
         when(bankCoreDemoApiApi.getAccountNumberByCard(any())).thenReturn(cardResponse);
@@ -107,107 +93,33 @@ public class AtmServiceTest {
         boolean result = atmService.getMoney(moneyRequestDTO);
 
         assertFalse(result);
+        verify(bankCoreDemoApiApi, times(1)).reserveMoneyOnAccount(any());
+        verify(cashDispenser, times(1)).issueMoney(anyInt());
+        verify(bankCoreDemoApiApi, times(1)).reserveMoneyOnAccount1(any());
     }
 
     @Test
-    public void ShouldFailWhenReservationIsNotFound() {
-        exceptionRule.expect(EntityNotFoundException.class);
-        exceptionRule.expectMessage("Failed to reserve funds");
-        CardResponse cardResponse = new CardResponse();
-        cardResponse.setAccountNumber("123");
-        BalanceResponse balanceResponse = new BalanceResponse();
-        balanceResponse.setBalance(1000);
-        ReservationResponse reservationResponse = new ReservationResponse();
-        reservationResponse.setReservationId("asdf");
-        MoneyRequestDTO moneyRequestDTO = new MoneyRequestDTO();
-        moneyRequestDTO.setAmount(100);
-        moneyRequestDTO.setCardNumber("123");
-
-        when(cashDispenser.issueMoney(anyInt())).thenReturn(true);
-        when(bankCoreDemoApiApi.getAccountNumberByCard(any())).thenReturn(cardResponse);
-        when(bankCoreDemoApiApi.getAccountBalance(any())).thenReturn(balanceResponse);
-        when(bankCoreDemoApiApi.reserveMoneyOnAccount(any())).thenReturn(reservationResponse);
-        when(bankCoreDemoApiApi.commitReservationOnAccount(any())).thenThrow(HttpClientErrorException.NotFound.class);
-
-        atmService.getMoney(moneyRequestDTO);
-    }
-
-    @Test
-    public void ShouldFailWhenBankApiReturnsConflict() {
-        exceptionRule.expect(InsufficientFundsException.class);
-        exceptionRule.expectMessage("Not enough funds");
-        CardResponse cardResponse = new CardResponse();
-        cardResponse.setAccountNumber("123");
-        BalanceResponse balanceResponse = new BalanceResponse();
-        balanceResponse.setBalance(1000);
-        MoneyRequestDTO moneyRequestDTO = new MoneyRequestDTO();
-        moneyRequestDTO.setAmount(100);
-        moneyRequestDTO.setCardNumber("123");
-
-        when(cashDispenser.issueMoney(anyInt())).thenReturn(true);
-        when(bankCoreDemoApiApi.getAccountNumberByCard(any())).thenReturn(cardResponse);
-        when(bankCoreDemoApiApi.getAccountBalance(any())).thenReturn(balanceResponse);
-        when(bankCoreDemoApiApi.reserveMoneyOnAccount(any())).thenThrow(HttpClientErrorException.Conflict.class);
-
-        atmService.getMoney(moneyRequestDTO);
-    }
-
-    @Test
-    public void ShouldCatchUnexpectedCashDispenserException() {
+    public void ShouldRollbackReservationUponFailureToIssueMoneyWithAnUnexpectedError() {
         exceptionRule.expect(IllegalStateException.class);
-        exceptionRule.expectMessage("ATM has encountered difficulties");
         CardResponse cardResponse = new CardResponse();
-        cardResponse.setAccountNumber("123");
+        cardResponse.setAccountNumber("ACCOUNT_NUMBER");
         BalanceResponse balanceResponse = new BalanceResponse();
         balanceResponse.setBalance(1000);
         ReservationResponse reservationResponse = new ReservationResponse();
-        reservationResponse.setReservationId("asdf");
+        reservationResponse.setReservationId("RESERVATION_ID");
         MoneyRequestDTO moneyRequestDTO = new MoneyRequestDTO();
         moneyRequestDTO.setAmount(100);
-        moneyRequestDTO.setCardNumber("123");
+        moneyRequestDTO.setCardNumber("CARD_NUMBER");
 
-        when(cashDispenser.issueMoney(anyInt())).thenThrow(NullPointerException.class);
+        when(cashDispenser.issueMoney(anyInt())).thenThrow(IllegalStateException.class);
         when(bankCoreDemoApiApi.getAccountNumberByCard(any())).thenReturn(cardResponse);
         when(bankCoreDemoApiApi.getAccountBalance(any())).thenReturn(balanceResponse);
         when(bankCoreDemoApiApi.reserveMoneyOnAccount(any())).thenReturn(reservationResponse);
 
         atmService.getMoney(moneyRequestDTO);
-    }
 
-    @Test
-    public void ShouldCatchFailedReservationRollbackException() {
-        exceptionRule.expect(EntityNotFoundException.class);
-        exceptionRule.expectMessage("Could not roll-back, reservation not found");
-        CardResponse cardResponse = new CardResponse();
-        cardResponse.setAccountNumber("123");
-        BalanceResponse balanceResponse = new BalanceResponse();
-        balanceResponse.setBalance(1000);
-        ReservationResponse reservationResponse = new ReservationResponse();
-        reservationResponse.setReservationId("asdf");
-        MoneyRequestDTO moneyRequestDTO = new MoneyRequestDTO();
-        moneyRequestDTO.setAmount(100);
-        moneyRequestDTO.setCardNumber("123");
-
-        when(cashDispenser.issueMoney(anyInt())).thenThrow(NullPointerException.class);
-        when(bankCoreDemoApiApi.getAccountNumberByCard(any())).thenReturn(cardResponse);
-        when(bankCoreDemoApiApi.getAccountBalance(any())).thenReturn(balanceResponse);
-        when(bankCoreDemoApiApi.reserveMoneyOnAccount(any())).thenReturn(reservationResponse);
-        when(bankCoreDemoApiApi.reserveMoneyOnAccount1(any())).thenThrow(HttpClientErrorException.NotFound.class);
-
-        atmService.getMoney(moneyRequestDTO);
-    }
-
-    @Test
-    public void ShouldFailWhenCardIsNotFound() {
-        exceptionRule.expect(EntityNotFoundException.class);
-        exceptionRule.expectMessage("Please enter a valid card number");
-        MoneyRequestDTO moneyRequestDTO = new MoneyRequestDTO();
-        moneyRequestDTO.setAmount(100);
-        moneyRequestDTO.setCardNumber("123");
-
-        when(bankCoreDemoApiApi.getAccountNumberByCard(any())).thenThrow(HttpClientErrorException.NotFound.class);
-
-        atmService.getMoney(moneyRequestDTO);
+        verify(bankCoreDemoApiApi, times(0)).reserveMoneyOnAccount(any());
+        verify(bankCoreDemoApiApi, times(1)).reserveMoneyOnAccount1(any());
     }
 
 }

@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
@@ -33,6 +34,16 @@ public class CustomGlobalExceptionHandler extends ResponseEntityExceptionHandler
 
         body.put("errors", errors);
         return new ResponseEntity<>(body, HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler({HttpClientErrorException.class})
+    protected ResponseEntity<Object> handleApiClientException(HttpClientErrorException exception, WebRequest webRequest) {
+        Map<String, Object> body = new HashMap<>();
+        //List of errors to maintain similar error structure as the other handler
+        List<String> errors = Collections.singletonList(exception.getResponseBodyAsString());
+        body.put("errors", errors);
+
+        return new ResponseEntity<>(body, new HttpHeaders(), exception.getStatusCode());
     }
 
     @ExceptionHandler({EntityNotFoundException.class, InsufficientFundsException.class, IllegalStateException.class})

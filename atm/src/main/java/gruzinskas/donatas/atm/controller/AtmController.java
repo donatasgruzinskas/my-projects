@@ -13,7 +13,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import javax.validation.Valid;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -28,14 +27,13 @@ public class AtmController {
     }
 
     @PostMapping(value = "/issue/money", consumes = "application/json")
-    public ResponseEntity<Object> getMoney(@Valid @RequestBody MoneyRequestDTO moneyRequestDTO) {
+    public ResponseEntity<Object> issueMoney(@Valid @RequestBody MoneyRequestDTO moneyRequestDTO) {
         boolean result = atmService.getMoney(moneyRequestDTO);
         if (result){
             return ResponseEntity.ok("OK");
         }
         Map<String, Object> body = new HashMap<>();
         body.put("errors", "Not enough funds");
-//        return ResponseEntity.badRequest().body("errors", "Not enough funds");
         return new ResponseEntity<>(body, new HttpHeaders(), HttpStatus.BAD_REQUEST);
     }
 }

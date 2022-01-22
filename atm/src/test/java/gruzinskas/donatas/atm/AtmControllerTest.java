@@ -33,11 +33,11 @@ public class AtmControllerTest {
     private AtmService atmService;
 
     @Test
-    public void HappyPath() throws Exception {
+    public void ShouldReturn200WhenMoneyWasSuccessfullyIssued() throws Exception {
         when(atmService.getMoney(any())).thenReturn(true);
         MoneyRequestDTO moneyRequestDTO = MoneyRequestDTO.builder()
                 .amount(100)
-                .cardNumber("123")
+                .cardNumber("CARD_NUMBER")
                 .build();
 
         this.mockMvc.perform(post("/issue/money")
@@ -51,7 +51,7 @@ public class AtmControllerTest {
         when(atmService.getMoney(any())).thenReturn(false);
         MoneyRequestDTO moneyRequestDTO = MoneyRequestDTO.builder()
                 .amount(100)
-                .cardNumber("123")
+                .cardNumber("CARD_NUMBER")
                 .build();
 
         this.mockMvc.perform(post("/issue/money")
@@ -95,7 +95,7 @@ public class AtmControllerTest {
     public void ShouldReturn400WhenAmountIsNegative() throws Exception {
         MoneyRequestDTO moneyRequestDTO = MoneyRequestDTO.builder()
                 .amount(-1)
-                .cardNumber("123")
+                .cardNumber("CARD_NUMBER")
                 .build();
 
         this.mockMvc.perform(post("/issue/money")
@@ -110,7 +110,7 @@ public class AtmControllerTest {
     public void ShouldReturn400WhenAmountIsTooLarge() throws Exception {
         MoneyRequestDTO moneyRequestDTO = MoneyRequestDTO.builder()
                 .amount(999999992)
-                .cardNumber("123")
+                .cardNumber("CARD_NUMBER")
                 .build();
 
         this.mockMvc.perform(post("/issue/money")
